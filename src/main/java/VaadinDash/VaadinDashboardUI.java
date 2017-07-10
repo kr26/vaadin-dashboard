@@ -31,14 +31,15 @@ public class VaadinDashboardUI extends UI {
     @Autowired
     private CounterRepository repository;
 
-    VerticalLayout layout;
-    HorizontalLayout layoutInformers;
-    HorizontalLayout layoutFooter;
-
+    VerticalLayout layout; // основной макет
+    HorizontalLayout layoutInformers; // макет информеров
+    VerticalLayout layoutFooter; // макет подвала
 
 
     @Override
     protected void init(VaadinRequest vaadinRequest) {
+
+        // поочереди запускаем методы отображения макетов с содержимым
 
         setupLayout();
         showHeader();
@@ -52,8 +53,7 @@ public class VaadinDashboardUI extends UI {
     }
 
 
-
-    private void setupLayout() {
+    private void setupLayout() {     // конфигурация основного макета
         layout = new VerticalLayout();
         layout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
@@ -64,7 +64,7 @@ public class VaadinDashboardUI extends UI {
     }
 
 
-    private void showHeader() {
+    private void showHeader() { // шапка
 
         Label header = new Label("Тестовое сетевое приложение");
         header.addStyleName(ValoTheme.LABEL_H2);
@@ -73,15 +73,15 @@ public class VaadinDashboardUI extends UI {
     }
 
 
-    private void showPanels() {
+    private void showPanels() { // панели отображаются в layoutInformers
 
         layoutInformers = new HorizontalLayout();
         layoutInformers.setWidth(50, Unit.PERCENTAGE);
         layoutInformers.setHeight(50, Unit.PERCENTAGE);
-      //  layoutInformers.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
 
         layout.addComponent(layoutInformers);
 
+        // вызываем подгрузку панелей
         showWeatherPanel();
         showCurrencyPanel();
         showCounterPanel();
@@ -90,37 +90,65 @@ public class VaadinDashboardUI extends UI {
 
     private void showWeatherPanel() {
 
+        // создаем панель
         Panel panelWeather = new Panel("Погода");
-        panelWeather.setHeight(225, Unit.PIXELS);
+        panelWeather.setHeight(230, Unit.PIXELS);
         panelWeather.setIcon(VaadinIcons.CLOUD);
         panelWeather.addStyleName(ValoTheme.PANEL_WELL);
 
+        // панель содержит weatherLayout
         VerticalLayout weatherLayout = new VerticalLayout();
         weatherLayout.setWidth(100, Unit.PERCENTAGE);
         weatherLayout.setHeight(100, Unit.PERCENTAGE);
+        weatherLayout.setMargin(true);
         weatherLayout.setSpacing(true);
 
-
+        // список городов
         List<String> cities = new ArrayList<>();
         cities.add("Москва");
         cities.add("Санкт-Петербург");
         cities.add("Новосибирск");
 
+        // выводим в комбобокс
         ComboBox changeCity = new ComboBox<>("Выберите город:", cities);
-
         changeCity.setTextInputAllowed(false);
         changeCity.setEmptySelectionAllowed(false);
         changeCity.setSelectedItem(cities.get(2));
-        weatherLayout.addComponent(changeCity);
 
+        // выводим текущую погоду в label
         Label weather = new Label();
         weather.setCaption("");
-        weather.setValue("Текущая погода: "+getWeather());
-        weatherLayout.addComponent(weather);
+        // вызов функции подгрузки данных по API
+        weather.setValue("Текущая погода: "+getWeather(changeCity.getValue().toString()));
 
+        // выводим погоду на завтра в label
+        Label forecast = new Label();
+        // вызов функции подгрузки данных по API
+        forecast.setValue("Погода на завтра: "+getForecast(changeCity.getValue().toString()));
+
+        // а также при смене города тоже сразу подгружаем соответстующие данные
+        changeCity.addValueChangeListener(event ->
+        {
+            weather.setValue("Текущая погода: "+getWeather(changeCity.getValue().toString()));
+            forecast.setValue("Погода на завтра: "+getForecast(changeCity.getValue().toString()));
+        });
+
+
+        // кнопка Обновить
         Button buttonRefresh = new Button("Обновить");
         buttonRefresh.setStyleName(ValoTheme.BUTTON_PRIMARY);
-        weatherLayout.addComponent(buttonRefresh);
+
+        // вызов функции подгрузки данных по API
+        buttonRefresh.addClickListener
+                (event ->
+                {
+                    weather.setValue("Текущая погода: "+getWeather(changeCity.getValue().toString()));
+                    forecast.setValue("Погода на завтра: "+getForecast(changeCity.getValue().toString()));
+                });
+
+
+        // добавляем на макет
+        weatherLayout.addComponents(changeCity, weather, forecast, buttonRefresh);
 
         panelWeather.setContent(weatherLayout);
         layoutInformers.addComponent(panelWeather);
@@ -128,25 +156,43 @@ public class VaadinDashboardUI extends UI {
 
     private void showCurrencyPanel() {
 
+        // создаем панель
         Panel panelCurrency = new Panel("Курсы валют");
-        panelCurrency.setHeight(225, Unit.PIXELS);
+        panelCurrency.setHeight(230, Unit.PIXELS);
         panelCurrency.setIcon(VaadinIcons.MONEY_EXCHANGE);
         panelCurrency.addStyleName(ValoTheme.PANEL_WELL);
 
+        // панель содержит currencyLayout
         VerticalLayout currencyLayout = new VerticalLayout();
         currencyLayout.setWidth(100, Unit.PERCENTAGE);
         currencyLayout.setHeight(100, Unit.PERCENTAGE);
         currencyLayout.setSpacing(false);
 
-        HashMap<String,Double> currencies = new HashMap<String,Double>();
+        // разные валюты, поэтому значения в Map
+        HashMap<String,Double> currencies;
+
+        // подгружаем данные по API
         currencies = getCurrency();
 
-        currencyLayout.addComponent(new Label("USD: "+currencies.get("usd").toString()));
-        currencyLayout.addComponent(new Label("EUR: "+currencies.get("eur").toString()));
+        // выводим курсы валют в label
+        Label usdLabel = new Label();
+        Label eurLabel = new Label();
+        usdLabel.setValue("USD: "+currencies.get("usd").toString());
+        eurLabel.setValue("EUR: "+currencies.get("eur").toString());
 
+        // кнопка Обновить
         Button buttonRefresh = new Button("Обновить");
         buttonRefresh.setStyleName(ValoTheme.BUTTON_PRIMARY);
-        currencyLayout.addComponent(buttonRefresh);
+        // вызов функции подгрузки данных по API
+        buttonRefresh.addClickListener
+                (event ->
+                {
+                    usdLabel.setValue("USD: "+currencies.get("usd").toString());
+                    eurLabel.setValue("EUR: "+currencies.get("eur").toString());
+                });
+
+        // добавляем на макет
+        currencyLayout.addComponents(usdLabel, eurLabel, buttonRefresh);
 
         panelCurrency.setContent(currencyLayout);
         layoutInformers.addComponent(panelCurrency);
@@ -155,40 +201,47 @@ public class VaadinDashboardUI extends UI {
 
     private void showCounterPanel() {
 
+        // создаем панель
         Panel panelCounter = new Panel("Счетчик посещений");
-        panelCounter.setHeight(225, Unit.PIXELS);
+        panelCounter.setHeight(230, Unit.PIXELS);
         panelCounter.setIcon(VaadinIcons.USER);
         panelCounter.addStyleName(ValoTheme.PANEL_WELL);
 
-        VerticalLayout weatherLayout = new VerticalLayout();
-        weatherLayout.setWidth(100, Unit.PERCENTAGE);
-        weatherLayout.setHeight(100, Unit.PERCENTAGE);
-        weatherLayout.setSpacing(false);
+        // панель содержит counterLayout
+        VerticalLayout counterLayout = new VerticalLayout();
+        counterLayout.setWidth(100, Unit.PERCENTAGE);
+        counterLayout.setHeight(100, Unit.PERCENTAGE);
+        counterLayout.setSpacing(false);
 
-        weatherLayout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
+        // выравнивание по центру
+        counterLayout.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
+
+        // счетчик посещений в label
         Label showVisits = new Label(getCounter());
         showVisits.addStyleName(ValoTheme.LABEL_H1);
 
-        weatherLayout.addComponent(showVisits);
+        // добавляем на макет
+        counterLayout.addComponent(showVisits);
 
-        panelCounter.setContent(weatherLayout);
+        panelCounter.setContent(counterLayout);
 
         layoutInformers.addComponent(panelCounter);
 
     }
 
-    private void showFooter() {
+    private void showFooter() { // отображаем подвал
 
-        layoutFooter = new HorizontalLayout();
-        layoutFooter.setDefaultComponentAlignment(Alignment.MIDDLE_LEFT);
+        layoutFooter = new VerticalLayout();
+        layoutFooter.setDefaultComponentAlignment(Alignment.MIDDLE_CENTER);
         layout.addComponent(layoutFooter);
-        showDate();
-        showIP();
+        showDate(); // отображаем дату
+        showIP(); // отображаем IP
     }
 
 
     private void showDate() {
 
+        // дата в нужном формате
         Date date = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("dd.MM.yyyy HH:mm");
         String datetime = formatter.format(date);
@@ -201,19 +254,90 @@ public class VaadinDashboardUI extends UI {
 
     private void showIP() {
 
-            WebBrowser webBrowser = Page.getCurrent().getWebBrowser();
-            Label ipAddresslabel = new Label("Ваш IP: "+webBrowser.getAddress());
-            ipAddresslabel.addStyleName(ValoTheme.LABEL_BOLD);
-            layoutFooter.addComponent(ipAddresslabel);
+        // вывод IP
+        WebBrowser webBrowser = Page.getCurrent().getWebBrowser();
+        Label ipAddresslabel = new Label("Ваш IP: "+webBrowser.getAddress());
+        ipAddresslabel.addStyleName(ValoTheme.LABEL_BOLD);
+        layoutFooter.addComponent(ipAddresslabel);
 
         }
 
 
-        private String getWeather ()  {
+        private String getWeather (String city) { // запрос текущей погоды по API
 
             String weather="";
 
-            final String url = "http://api.openweathermap.org/data/2.5/weather?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695";
+            String url="";
+
+            switch (city) { // в зависимости от города URL запроса будет разный
+                case "Москва": url = "http://api.openweathermap.org/data/2.5/weather?id=524901&appid=965e6e466b00aaf6586cffb216a4c695";
+                    break;
+
+                case "Санкт-Петербург": url = "http://api.openweathermap.org/data/2.5/weather?id=498817&appid=965e6e466b00aaf6586cffb216a4c695";
+                    break;
+
+                case "Новосибирск": url = "http://api.openweathermap.org/data/2.5/weather?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695";
+                    break;
+
+                    default: url = "http://api.openweathermap.org/data/2.5/weather?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695";
+
+            }
+
+            try {
+
+                RestTemplate template = new RestTemplate(); // инициализация REST-шаблона
+
+                template.getMessageConverters().add(new MappingJackson2HttpMessageConverter());     // указываем конвертер для шаблона
+                // отвечает за то, каким образом JSON-объект будет преобразован в JAVA-объект:
+
+                JSONObject json = template.getForObject(url, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
+                // возвращает сконвертированный JAVA-объект
+
+                // вскрываем JSON
+
+                HashMap<String, String> hmap = (HashMap<String, String>) json.get("main");
+
+                Object obj = hmap.get("temp");
+
+                // переводим из Кельвинов в Цельсии
+                Double temp = (Double) obj - 273.15;
+
+                // вывод с одной цифрой после запятой
+                weather = String.format("%.1f", temp);
+
+            }
+            catch (Exception e) // если загрузка данных не удалась
+            {
+                Notification.show("Нет данных о погоде");
+                weather = "Нет данных";
+            }
+
+            return weather;
+
+        }
+
+
+    private String getForecast (String city)  { // запрос прогноза погоды на завтра по API
+
+        String forecast="";
+
+        String url="";
+
+        switch (city) { // в зависимости от города URL запроса будет разный
+            case "Москва": url = "http://api.openweathermap.org/data/2.5/forecast/daily?id=524901&appid=965e6e466b00aaf6586cffb216a4c695";
+                break;
+
+            case "Санкт-Петербург": url = "http://api.openweathermap.org/data/2.5/forecast/daily?id=498817&appid=965e6e466b00aaf6586cffb216a4c695";
+                break;
+
+            case "Новосибирск": url = "http://api.openweathermap.org/data/2.5/forecast/daily?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695";
+                break;
+
+            default: url = "http://api.openweathermap.org/data/2.5/forecast/daily?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695";
+
+        }
+
+        try {
 
             RestTemplate template = new RestTemplate(); // инициализация REST-шаблона
 
@@ -223,73 +347,116 @@ public class VaadinDashboardUI extends UI {
             JSONObject json = template.getForObject(url, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
             // возвращает сконвертированный JAVA-объект
 
-            HashMap<String,String> hmap = (HashMap<String,String>) json.get("main");
+            // вскрываем JSON
+
+            ArrayList<Object> list = (ArrayList) json.get("list");
+
+            HashMap<Object, Object> hmap = (HashMap<Object, Object>) list.get(1);
 
             Object obj = hmap.get("temp");
 
-            Double temp = (Double) obj - 273.15;
+            HashMap<String, Double> values = (HashMap<String, Double>) obj;
 
-            weather = temp.toString();
+            Object degree = values.get("day");
 
+            // переводим из Кельвинов в Цельсии
 
-            return weather;
+            Double temp = (Double) degree - 273.15;
+
+            // вывод с одной цифрой после запятой
+
+            forecast = String.format("%.1f", temp);
 
         }
+        catch (Exception e) // если загрузка данных не удалась
+        {
+            Notification.show("Нет данных о погоде");
+            forecast = "Нет данных";
+        }
 
-         private HashMap<String,Double> getCurrency() {
+        return forecast;
 
-            HashMap<String,Double> curr = new HashMap<String,Double>();
+    }
+
+
+         private HashMap<String,Double> getCurrency() { // запрос курсов валют по API
+
+            HashMap<String,Double> curr = new HashMap<>();
+
+             // URL запроса для разных валют
 
             final String usd = "http://api.fixer.io/latest?base=USD";
             final String eur = "http://api.fixer.io/latest?base=EUR";
 
-            RestTemplate template = new RestTemplate(); // инициализация REST-шаблона
+             try {
 
-            template.getMessageConverters().add(new MappingJackson2HttpMessageConverter());     // указываем конвертер для шаблона
-            // отвечает за то, каким образом JSON-объект будет преобразован в JAVA-объект:
+                 RestTemplate template = new RestTemplate(); // инициализация REST-шаблона
 
-            // Получаем USD
+                 template.getMessageConverters().add(new MappingJackson2HttpMessageConverter());     // указываем конвертер для шаблона
+                 // отвечает за то, каким образом JSON-объект будет преобразован в JAVA-объект:
 
-            JSONObject json = template.getForObject(usd, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
-            // возвращает сконвертированный JAVA-объект
+                 // получаем USD
 
-            HashMap<String,String> hmap = (HashMap<String,String>) json.get("rates");
+                 JSONObject json = template.getForObject(usd, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
+                 // возвращает сконвертированный JAVA-объект
 
-            Object obj = hmap.get("RUB");
+                 // вскрываем JSON
 
-            Double usdrate = (Double) obj;
+                 HashMap<String, String> hmap = (HashMap<String, String>) json.get("rates");
 
-            curr.put("usd",usdrate);
+                 Object obj = hmap.get("RUB");
 
-            hmap.clear();
+                 Double usdrate = (Double) obj;
 
-            // Получаем EUR
+                 curr.put("usd", usdrate);
 
-            json = template.getForObject(eur, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
-            // возвращает сконвертированный JAVA-объект
+                 hmap.clear();
 
-            hmap = (HashMap<String,String>) json.get("rates");
+                 // получаем EUR
 
-            obj = hmap.get("RUB");
+                 json = template.getForObject(eur, JSONObject.class);     // получаем JSON-объект и передаем его в CosmosDTO класс
+                 // возвращает сконвертированный JAVA-объект
 
-            Double eurrate = (Double) obj;
+                 hmap = (HashMap<String, String>) json.get("rates");
 
-            curr.put("eur",eurrate);
+                 obj = hmap.get("RUB");
 
+                 Double eurrate = (Double) obj;
+
+                 curr.put("eur", eurrate);
+             }
+             catch (Exception e) // если загрузка данных не удалась
+             {
+                 Notification.show("Нет данных о курсах валют");
+                 curr.put("usd", 0.0);
+                 curr.put("eur", 0.0);
+             }
 
             return curr;
         }
 
 
-        private String getCounter() {
+        private String getCounter() { // получение и запись счетчика через репозиторий
 
             DashCounter count = new DashCounter();
 
-            count = repository.findAll().get(0);
+            try {
 
-            count.setCount(count.getCount()+1L);
+                // работаем с репозиторием Mongo
+                count = repository.findAll().get(0);
 
-            repository.save(count);
+                // инкремент
+                count.setCount(count.getCount() + 1L);
+
+                // сохраняем
+                repository.save(count);
+
+            }
+            catch (Exception e) // если проблема с БД
+            {
+                Notification.show("Нет соединения с базой данных");
+                count.setCount(0L);
+            }
 
             return String.valueOf(count.getCount());
 
@@ -298,5 +465,3 @@ public class VaadinDashboardUI extends UI {
 
 
 }
-
-// http://api.openweathermap.org/data/2.5/weather?id=1496747&appid=965e6e466b00aaf6586cffb216a4c695
